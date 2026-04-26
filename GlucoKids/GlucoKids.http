@@ -1,0 +1,6 @@
+@GlucoKids_HostAddress = http://localhost:5166
+
+GET {{GlucoKids_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
