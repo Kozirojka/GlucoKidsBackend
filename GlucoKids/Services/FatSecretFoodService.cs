@@ -9,25 +9,33 @@ public class FatSecretFoodService(IHttpClientFactory httpClientFactory, FatSecre
     private const float CarbsPerBreadUnit = 12f;
     private const string ApiUrl = "https://platform.fatsecret.com/rest/server.api";
 
-    public async Task<FoodSearchResponse> SearchAsync(string query, int page = 0, CancellationToken ct = default)
+    public async Task<FoodSearchResponse> SearchAsync(string query, int page = 0, string? foodType = null, CancellationToken ct = default)
     {
         var token = await tokenService.GetAccessTokenAsync(ct);
         var client = httpClientFactory.CreateClient("FatSecretApi");
 
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
         var body = new Dictionary<string, string>
         {
-            ["method"] = "foods.search.v3",
+            ["method"] = "foods.search.v5",
             ["search_expression"] = query,
-            ["language"] = "uk",
-            ["region"] = "UA",
+            ["language"] = "en",
+            ["region"] = "US",
             ["format"] = "json",
             ["max_results"] = "20",
-            ["page_number"] = page.ToString()
+            ["page_number"] = page.ToString(),
+            ["include_food_attributes"] = "true"
         };
 
-        var response = await client.PostAsync(ApiUrl, new FormUrlEncodedContent(body), ct);
+        if (foodType is "brand" or "generic")
+            body["food_type"] = foodType;
+
+        var request = new HttpRequestMessage(HttpMethod.Post, ApiUrl)
+        {
+            Content = new FormUrlEncodedContent(body)
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await client.SendAsync(request, ct);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -44,7 +52,6 @@ public class FatSecretFoodService(IHttpClientFactory httpClientFactory, FatSecre
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
-        // FatSecret wraps everything under "foods"
         if (!root.TryGetProperty("foods", out var foodsNode))
             return new FoodSearchResponse([], 0);
 
@@ -57,7 +64,6 @@ public class FatSecretFoodService(IHttpClientFactory httpClientFactory, FatSecre
         if (!foodsNode.TryGetProperty("food", out var foodArray))
             return new FoodSearchResponse(items, total);
 
-        // "food" can be a single object (1 result) or an array (multiple results)
         if (foodArray.ValueKind == JsonValueKind.Object)
         {
             var item = ParseFoodItem(foodArray);
@@ -82,24 +88,22 @@ public class FatSecretFoodService(IHttpClientFactory httpClientFactory, FatSecre
 
         var brand = el.TryGetProperty("brand_name", out var b) ? b.GetString() : null;
 
+        var foodType = el.TryGetProperty("food_type", out var ft) ? ft.GetString() : null;
+
         float calories = 0, carbs = 0;
 
-        // Structured nutrients are inside servings.serving (first serving = per 100g)
         if (el.TryGetProperty("servings", out var servings) &&
             servings.TryGetProperty("serving", out var servingEl))
         {
-            // "serving" can be array or single object
             var serving = servingEl.ValueKind == JsonValueKind.Array
                 ? servingEl[0]
                 : servingEl;
 
-            calories = ParseDecimal(serving, "calories");
-            carbs = ParseDecimal(serving, "carbohydrate");
+            calories = ParseFloat(serving, "calories");
+            carbs = ParseFloat(serving, "carbohydrate");
         }
         else if (el.TryGetProperty("food_description", out var descEl))
         {
-            // Fallback: parse legacy description string
-            // "Per 100g - Calories: 264kcal | Fat: 1.00g | Carbs: 53.00g | Protein: 9.00g"
             var desc = descEl.GetString() ?? string.Empty;
             calories = ExtractFloat(desc, "Calories:", "kcal");
             carbs = ExtractFloat(desc, "Carbs:", "g");
@@ -112,10 +116,11 @@ public class FatSecretFoodService(IHttpClientFactory httpClientFactory, FatSecre
             Calories: (int)Math.Round(calories),
             Carbs: MathF.Round(carbs, 1),
             BreadUnits: MathF.Round(breadUnits, 2),
-            Brand: brand);
+            Brand: brand,
+            FoodType: foodType);
     }
 
-    private static float ParseDecimal(JsonElement el, string property)
+    private static float ParseFloat(JsonElement el, string property)
     {
         if (!el.TryGetProperty(property, out var prop)) return 0f;
         var str = prop.ValueKind == JsonValueKind.String ? prop.GetString() : prop.GetRawText();

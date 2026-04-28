@@ -2,15 +2,23 @@ using GlucoKids.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// OpenAPI / Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// HttpClient factory — two named clients for clarity
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy
+            .AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader();
+    });
+});
+
 builder.Services.AddHttpClient("FatSecretToken");
 builder.Services.AddHttpClient("FatSecretApi");
 
-// FatSecret services (singleton so token cache lives for the lifetime of the app)
 builder.Services.AddSingleton<FatSecretTokenService>();
 builder.Services.AddSingleton<FatSecretFoodService>();
 
@@ -22,21 +30,26 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+app.UseCors();
+if (!app.Environment.IsDevelopment())
+    app.UseHttpsRedirection();
 
-// ── Food search proxy ──────────────────────────────────────────────────────────
 app.MapGet("/api/food/search", async (
     string q,
-    int page,
     FatSecretFoodService foodService,
-    CancellationToken ct) =>
+    CancellationToken ct,
+    int page = 0,
+    string? foodType = null) =>
 {
     if (string.IsNullOrWhiteSpace(q))
         return Results.BadRequest("Query parameter 'q' is required.");
 
+    if (page < 0)
+        return Results.BadRequest("Page must be >= 0.");
+
     try
     {
-        var result = await foodService.SearchAsync(q, page, ct);
+        var result = await foodService.SearchAsync(q, page, foodType, ct);
         return Results.Ok(result);
     }
     catch (HttpRequestException ex)
@@ -49,6 +62,10 @@ app.MapGet("/api/food/search", async (
 })
 .WithName("SearchFood")
 .WithOpenApi()
-.WithSummary("Search food by name and return nutritional info including bread units");
+.WithSummary("Search food by name (v5). Optional foodType: 'brand' | 'generic'");
+
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
+   .WithName("Health")
+   .ExcludeFromDescription();
 
 app.Run();
