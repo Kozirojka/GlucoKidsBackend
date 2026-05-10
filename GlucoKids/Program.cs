@@ -1,28 +1,55 @@
-using GlucoKids.Services;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
+using GlucoKids.Application.Interfaces;
+using GlucoKids.Infrastructure.Data;
+using GlucoKids.Infrastructure.Services;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole(options => options.FormatterName = "simple");
+
+builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddCors(options =>
-{
-    options.AddDefaultPolicy(policy =>
-    {
-        policy
-            .AllowAnyOrigin()
-            .AllowAnyMethod()
-            .AllowAnyHeader();
-    });
-});
+    options.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
 builder.Services.AddHttpClient("FatSecretToken");
 builder.Services.AddHttpClient("FatSecretApi");
+builder.Services.AddHttpClient("GoogleAuth");
 
 builder.Services.AddSingleton<FatSecretTokenService>();
-builder.Services.AddSingleton<FatSecretFoodService>();
+builder.Services.AddSingleton<IFoodService, FatSecretFoodService>();
+builder.Services.AddSingleton<IFirebaseTokenService, FirebaseTokenService>();
+builder.Services.AddSingleton<IGoogleAuthService, GoogleAuthService>();
+builder.Services.AddSingleton<IFirebaseAdminService, FirebaseAdminService>();
+
+builder.Services.AddDbContext<AppDbContext>(opt =>
+    opt.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
+
+// Firebase Admin SDK — ініціалізація один раз
+var serviceAccountJson = builder.Configuration["Firebase:ServiceAccountJson"];
+var serviceAccountPath = builder.Configuration["Firebase:ServiceAccountPath"];
+
+GoogleCredential credential;
+if (!string.IsNullOrWhiteSpace(serviceAccountJson))
+    credential = GoogleCredential.FromJson(serviceAccountJson);
+else if (!string.IsNullOrWhiteSpace(serviceAccountPath) && File.Exists(serviceAccountPath))
+    credential = GoogleCredential.FromFile(serviceAccountPath);
+else
+    throw new InvalidOperationException(
+        "Firebase Admin credentials not configured. " +
+        "Set Firebase:ServiceAccountJson (env var) or Firebase:ServiceAccountPath (file path).");
+
+FirebaseApp.Create(new AppOptions { Credential = credential });
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+    scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
 
 if (app.Environment.IsDevelopment())
 {
@@ -31,41 +58,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors();
+
 if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 
-app.MapGet("/api/food/search", async (
-    string q,
-    FatSecretFoodService foodService,
-    CancellationToken ct,
-    int page = 0,
-    string? foodType = null) =>
-{
-    if (string.IsNullOrWhiteSpace(q))
-        return Results.BadRequest("Query parameter 'q' is required.");
-
-    if (page < 0)
-        return Results.BadRequest("Page must be >= 0.");
-
-    try
-    {
-        var result = await foodService.SearchAsync(q, page, foodType, ct);
-        return Results.Ok(result);
-    }
-    catch (HttpRequestException ex)
-    {
-        return Results.Problem(
-            detail: ex.Message,
-            statusCode: StatusCodes.Status502BadGateway,
-            title: "FatSecret API error");
-    }
-})
-.WithName("SearchFood")
-.WithOpenApi()
-.WithSummary("Search food by name (v5). Optional foodType: 'brand' | 'generic'");
-
-app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
-   .WithName("Health")
-   .ExcludeFromDescription();
+app.MapControllers();
+app.MapGet("/health", () => Results.Ok(new { status = "ok" })).ExcludeFromDescription();
 
 app.Run();

@@ -1,0 +1,20 @@
+# This is a generated file. Not intended for manual editing.
+services:
+  api:
+    build:
+      context: "C:\\GlucoKidsBackend\\GlucoKids"
+      dockerfile: "GlucoKids/Dockerfile"
+      target: "base"
+    command: []
+    entrypoint:
+    - "dotnet"
+    - "/app/bin/Debug/net8.0/GlucoKids.dll"
+    environment:
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+    image: "glucokids:dev"
+    ports: []
+    volumes:
+    - "C:\\GlucoKidsBackend\\GlucoKids\\GlucoKids:/app:rw"
+    - "C:\\GlucoKidsBackend\\GlucoKids:/src:rw"
+    - "C:\\Users\\kostya\\.nuget\\packages:/root/.nuget/packages"
+    working_dir: "/app"

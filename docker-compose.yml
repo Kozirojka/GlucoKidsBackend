@@ -1,10 +1,45 @@
 services:
-  glucokids-api:
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB}
+      POSTGRES_USER:     ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
     build:
       context: .
       dockerfile: GlucoKids/Dockerfile
     ports:
       - "8080:8080"
-    env_file:
-      - .env
+    environment:
+      ASPNETCORE_ENVIRONMENT:       ${ASPNETCORE_ENVIRONMENT}
+      ConnectionStrings__Default:   ${DB_CONNECTION}
+      FatSecret__ClientId:          ${FatSecret__ClientId}
+      FatSecret__ClientSecret:      ${FatSecret__ClientSecret}
+      Firebase__ProjectId:          ${Firebase__ProjectId}
+      Firebase__ServiceAccountPath: ${Firebase__ServiceAccountPath}
+      Auth__AdminUid:               ${Auth__AdminUid}
+      Google__ClientId:             ${Google__ClientId}
+      Google__ClientSecret:         ${Google__ClientSecret}
+      Google__RedirectUri:          ${Google__RedirectUri}
+    volumes:
+      - ${FIREBASE_SA_HOST_PATH}:/app/secrets/firebase-adminsdk.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  pgdata:

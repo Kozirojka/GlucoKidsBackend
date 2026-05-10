@@ -1,6 +1,7 @@
 using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 
-namespace GlucoKids.Services;
+namespace GlucoKids.Infrastructure.Services;
 
 public class FatSecretTokenService(IHttpClientFactory httpClientFactory, IConfiguration configuration)
 {
@@ -22,29 +23,25 @@ public class FatSecretTokenService(IHttpClientFactory httpClientFactory, IConfig
         await _lock.WaitAsync(ct);
         try
         {
-            // Double-check after acquiring the lock
             if (_accessToken is not null && DateTime.UtcNow < _expiresAt)
                 return _accessToken;
 
             var body = new Dictionary<string, string>
             {
-                ["grant_type"] = "client_credentials",
-                ["client_id"] = _clientId,
+                ["grant_type"]    = "client_credentials",
+                ["client_id"]     = _clientId,
                 ["client_secret"] = _clientSecret,
-                ["scope"] = "basic premier"
+                ["scope"]         = "basic premier"
             };
 
             var client = httpClientFactory.CreateClient("FatSecretToken");
             var response = await client.PostAsync(
                 "https://oauth.fatsecret.com/connect/token",
-                new FormUrlEncodedContent(body),
-                ct);
+                new FormUrlEncodedContent(body), ct);
 
             var content = await response.Content.ReadAsStringAsync(ct);
-
             if (!response.IsSuccessStatusCode)
-                throw new HttpRequestException(
-                    $"FatSecret token request failed ({(int)response.StatusCode}): {content}");
+                throw new HttpRequestException($"FatSecret token request failed ({(int)response.StatusCode}): {content}");
 
             using var doc = JsonDocument.Parse(content);
             var root = doc.RootElement;
