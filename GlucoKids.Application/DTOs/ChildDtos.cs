@@ -16,22 +16,21 @@ public record ChildResponse(
     DateOnly? DateOfBirth,
     DateTime CreatedAt);
 
-public record UpdateProgressRequest(LessonStatus Status);
+public record UpdateProgressRequest(string LessonKey, LessonStatus Status);
 
 public record LessonProgressResponse(
-    int LessonId,
-    string LessonTitle,
-    int OrderIndex,
+    string LessonKey,
     LessonStatus Status,
     DateTime? StartedAt,
     DateTime? CompletedAt);
 
-public record ModuleProgressResponse(
-    int ModuleId,
-    string ModuleTitle,
-    string? ModuleDescription,
-    int OrderIndex,
-    IEnumerable<LessonProgressResponse> Lessons);
+public record FoodEntryRequest(
+    string Name,
+    string? Brand,
+    int Calories,
+    decimal CarbohydratesG,
+    decimal BreadUnits,
+    decimal? WeightG);
 
 public record SaveHealthRecordRequest(
     decimal? GlucoseMmol,
@@ -40,7 +39,8 @@ public record SaveHealthRecordRequest(
     decimal? InsulinShort,
     decimal? CarbohydratesG,
     int? Mood,
-    DateTime RecordedAt);
+    DateTime RecordedAt,
+    List<FoodEntryRequest>? Foods = null);
 
 public record HealthRecordResponse(
     int Id,

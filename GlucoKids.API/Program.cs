@@ -10,7 +10,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole(options => options.FormatterName = "simple");
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(opt =>
+        opt.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -26,6 +29,7 @@ builder.Services.AddSingleton<IFoodService, FatSecretFoodService>();
 builder.Services.AddSingleton<IFirebaseTokenService, FirebaseTokenService>();
 builder.Services.AddSingleton<IGoogleAuthService, GoogleAuthService>();
 builder.Services.AddSingleton<IFirebaseAdminService, FirebaseAdminService>();
+builder.Services.AddScoped<IAchievementService, AchievementService>();
 
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseNpgsql(builder.Configuration.GetConnectionString("Default")));

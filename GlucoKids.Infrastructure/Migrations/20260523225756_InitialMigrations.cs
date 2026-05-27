@@ -9,24 +9,27 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GlucoKids.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class InitialMigrations : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "psycho_modules",
+                name: "achievements",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Key = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     Title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    Description = table.Column<string>(type: "text", nullable: true),
-                    OrderIndex = table.Column<int>(type: "integer", nullable: false)
+                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    IconEmoji = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: false),
+                    XpReward = table.Column<int>(type: "integer", nullable: false),
+                    Category = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_psycho_modules", x => x.Id);
+                    table.PrimaryKey("PK_achievements", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -49,33 +52,12 @@ namespace GlucoKids.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "psycho_lessons",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    ModuleId = table.Column<int>(type: "integer", nullable: false),
-                    Title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    Content = table.Column<string>(type: "text", nullable: true),
-                    OrderIndex = table.Column<int>(type: "integer", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_psycho_lessons", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_psycho_lessons_psycho_modules_ModuleId",
-                        column: x => x.ModuleId,
-                        principalTable: "psycho_modules",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "children",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false),
-                    DateOfBirth = table.Column<DateOnly>(type: "date", nullable: true)
+                    DateOfBirth = table.Column<DateOnly>(type: "date", nullable: true),
+                    TotalXp = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -89,73 +71,26 @@ namespace GlucoKids.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "parent_child_links",
+                name: "child_achievements",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    ParentId = table.Column<int>(type: "integer", nullable: false),
                     ChildId = table.Column<int>(type: "integer", nullable: false),
-                    InviteCode = table.Column<string>(type: "character varying(8)", maxLength: 8, nullable: false),
-                    Status = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()"),
-                    LinkedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                    AchievementId = table.Column<int>(type: "integer", nullable: false),
+                    EarnedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_parent_child_links", x => x.Id);
+                    table.PrimaryKey("PK_child_achievements", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_parent_child_links_users_ChildId",
-                        column: x => x.ChildId,
-                        principalTable: "users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_parent_child_links_users_ParentId",
-                        column: x => x.ParentId,
-                        principalTable: "users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "parents",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "integer", nullable: false),
-                    Phone = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_parents", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_parents_users_Id",
-                        column: x => x.Id,
-                        principalTable: "users",
+                        name: "FK_child_achievements_achievements_AchievementId",
+                        column: x => x.AchievementId,
+                        principalTable: "achievements",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "child_stats",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    ChildId = table.Column<int>(type: "integer", nullable: false),
-                    TotalDuels = table.Column<int>(type: "integer", nullable: false),
-                    Wins = table.Column<int>(type: "integer", nullable: false),
-                    Losses = table.Column<int>(type: "integer", nullable: false),
-                    Draws = table.Column<int>(type: "integer", nullable: false),
-                    WinStreak = table.Column<int>(type: "integer", nullable: false),
-                    BestStreak = table.Column<int>(type: "integer", nullable: false),
-                    TotalPoints = table.Column<int>(type: "integer", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_child_stats", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_child_stats_children_ChildId",
+                        name: "FK_child_achievements_children_ChildId",
                         column: x => x.ChildId,
                         principalTable: "children",
                         principalColumn: "Id",
@@ -163,42 +98,44 @@ namespace GlucoKids.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "duels",
+                name: "Duel",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ChallengerChildId = table.Column<int>(type: "integer", nullable: false),
                     OpponentChildId = table.Column<int>(type: "integer", nullable: false),
-                    Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
                     DuelDate = table.Column<DateOnly>(type: "date", nullable: false),
                     EndsAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     WinnerChildId = table.Column<int>(type: "integer", nullable: true),
                     ChallengerPoints = table.Column<int>(type: "integer", nullable: false),
                     OpponentPoints = table.Column<int>(type: "integer", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()")
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ChallengerId = table.Column<int>(type: "integer", nullable: false),
+                    OpponentId = table.Column<int>(type: "integer", nullable: false),
+                    WinnerId = table.Column<int>(type: "integer", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_duels", x => x.Id);
+                    table.PrimaryKey("PK_Duel", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_duels_children_ChallengerChildId",
-                        column: x => x.ChallengerChildId,
+                        name: "FK_Duel_children_ChallengerId",
+                        column: x => x.ChallengerId,
                         principalTable: "children",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_duels_children_OpponentChildId",
-                        column: x => x.OpponentChildId,
+                        name: "FK_Duel_children_OpponentId",
+                        column: x => x.OpponentId,
                         principalTable: "children",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_duels_children_WinnerChildId",
-                        column: x => x.WinnerChildId,
+                        name: "FK_Duel_children_WinnerId",
+                        column: x => x.WinnerId,
                         principalTable: "children",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -235,7 +172,7 @@ namespace GlucoKids.Infrastructure.Migrations
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ChildId = table.Column<int>(type: "integer", nullable: false),
-                    LessonId = table.Column<int>(type: "integer", nullable: false),
+                    LessonKey = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
                     Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
                     StartedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     CompletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
@@ -249,28 +186,50 @@ namespace GlucoKids.Infrastructure.Migrations
                         principalTable: "children",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_lesson_progress_psycho_lessons_LessonId",
-                        column: x => x.LessonId,
-                        principalTable: "psycho_lessons",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "matchmaking_queue",
+                name: "medical_profiles",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ChildId = table.Column<int>(type: "integer", nullable: false),
-                    JoinedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()")
+                    DiabetesType = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: false),
+                    DiagnosedAt = table.Column<DateOnly>(type: "date", nullable: true),
+                    TargetGlucoseMin = table.Column<decimal>(type: "numeric(5,2)", nullable: false),
+                    TargetGlucoseMax = table.Column<decimal>(type: "numeric(5,2)", nullable: false),
+                    InsulinBrand = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_matchmaking_queue", x => x.Id);
+                    table.PrimaryKey("PK_medical_profiles", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_matchmaking_queue_children_ChildId",
+                        name: "FK_medical_profiles_children_ChildId",
+                        column: x => x.ChildId,
+                        principalTable: "children",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "xp_logs",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    ChildId = table.Column<int>(type: "integer", nullable: false),
+                    Amount = table.Column<int>(type: "integer", nullable: false),
+                    Reason = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    ReferenceId = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: true),
+                    EarnedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_xp_logs", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_xp_logs_children_ChildId",
                         column: x => x.ChildId,
                         principalTable: "children",
                         principalColumn: "Id",
@@ -294,21 +253,46 @@ namespace GlucoKids.Infrastructure.Migrations
                 {
                     table.PrimaryKey("PK_glucose_readings", x => x.Id);
                     table.ForeignKey(
+                        name: "FK_glucose_readings_Duel_DuelId",
+                        column: x => x.DuelId,
+                        principalTable: "Duel",
+                        principalColumn: "Id");
+                    table.ForeignKey(
                         name: "FK_glucose_readings_children_ChildId",
                         column: x => x.ChildId,
                         principalTable: "children",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_glucose_readings_duels_DuelId",
-                        column: x => x.DuelId,
-                        principalTable: "duels",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
                 });
 
             migrationBuilder.CreateTable(
-                name: "duel_point_events",
+                name: "food_entries",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    HealthRecordId = table.Column<int>(type: "integer", nullable: false),
+                    Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Brand = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    Calories = table.Column<int>(type: "integer", nullable: false),
+                    CarbohydratesG = table.Column<decimal>(type: "numeric(7,2)", nullable: false),
+                    BreadUnits = table.Column<decimal>(type: "numeric(7,2)", nullable: false),
+                    WeightG = table.Column<decimal>(type: "numeric(7,2)", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_food_entries", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_food_entries_health_records_HealthRecordId",
+                        column: x => x.HealthRecordId,
+                        principalTable: "health_records",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DuelPointEvent",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
@@ -316,98 +300,103 @@ namespace GlucoKids.Infrastructure.Migrations
                     DuelId = table.Column<int>(type: "integer", nullable: false),
                     ChildId = table.Column<int>(type: "integer", nullable: false),
                     Points = table.Column<int>(type: "integer", nullable: false),
-                    Reason = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Reason = table.Column<int>(type: "integer", nullable: false),
                     GlucoseReadingId = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()")
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_duel_point_events", x => x.Id);
+                    table.PrimaryKey("PK_DuelPointEvent", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_duel_point_events_children_ChildId",
-                        column: x => x.ChildId,
-                        principalTable: "children",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_duel_point_events_duels_DuelId",
+                        name: "FK_DuelPointEvent_Duel_DuelId",
                         column: x => x.DuelId,
-                        principalTable: "duels",
+                        principalTable: "Duel",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_duel_point_events_glucose_readings_GlucoseReadingId",
+                        name: "FK_DuelPointEvent_children_ChildId",
+                        column: x => x.ChildId,
+                        principalTable: "children",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_DuelPointEvent_glucose_readings_GlucoseReadingId",
                         column: x => x.GlucoseReadingId,
                         principalTable: "glucose_readings",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.InsertData(
-                table: "psycho_modules",
-                columns: new[] { "Id", "Description", "OrderIndex", "Title" },
+                table: "achievements",
+                columns: new[] { "Id", "Category", "Description", "IconEmoji", "Key", "Title", "XpReward" },
                 values: new object[,]
                 {
-                    { 1, "Основи про діабет для дітей", 1, "Що таке цукровий діабет?" },
-                    { 2, "Навчання користуватись глюкометром", 2, "Як вимірювати рівень глюкози?" },
-                    { 3, "Хлібні одиниці та збалансована дієта", 3, "Правильне харчування" },
-                    { 4, "Спорт і діабет — як поєднати?", 4, "Фізична активність" }
-                });
-
-            migrationBuilder.InsertData(
-                table: "psycho_lessons",
-                columns: new[] { "Id", "Content", "ModuleId", "OrderIndex", "Title" },
-                values: new object[,]
-                {
-                    { 1, null, 1, 1, "Що таке глюкоза?" },
-                    { 2, null, 1, 2, "Типи діабету" },
-                    { 3, null, 1, 3, "Як працює інсулін?" },
-                    { 4, null, 2, 1, "Що таке глюкометр?" },
-                    { 5, null, 2, 2, "Коли вимірювати глюкозу?" },
-                    { 6, null, 2, 3, "Норми рівня глюкози" },
-                    { 7, null, 3, 1, "Що таке хлібна одиниця?" },
-                    { 8, null, 3, 2, "Продукти з низьким глікемічним індексом" },
-                    { 9, null, 3, 3, "Як читати етикетки продуктів?" },
-                    { 10, null, 4, 1, "Чому спорт корисний при діабеті?" },
-                    { 11, null, 4, 2, "Що взяти з собою на тренування?" },
-                    { 12, null, 4, 3, "Гіпоглікемія під час активності" }
+                    { 1, "Lessons", "Заверши свій перший урок", "📖", "first_lesson", "Перший урок", 10 },
+                    { 2, "Lessons", "Заверши 5 уроків", "🎓", "lessons_5", "5 уроків", 50 },
+                    { 3, "Lessons", "Заверши всі уроки програми", "🏆", "all_lessons", "Всі уроки", 200 },
+                    { 4, "Glucose", "Збережи свій перший запис глюкози", "🩸", "first_record", "Перший запис", 10 },
+                    { 5, "Glucose", "Збережи 7 записів глюкози", "📊", "records_7", "7 записів", 30 },
+                    { 6, "Glucose", "Збережи 30 записів глюкози", "📈", "records_30", "30 записів", 100 },
+                    { 7, "Glucose", "5 показників у цільовому діапазоні", "✅", "in_range_5", "У нормі", 50 },
+                    { 8, "Battle", "Виграй свій перший батл", "⚔️", "first_win", "Перша перемога", 20 },
+                    { 9, "Battle", "Виграй 5 батлів", "🥇", "wins_5", "5 перемог", 75 },
+                    { 10, "Battle", "Виграй 10 батлів", "👑", "wins_10", "10 перемог", 150 },
+                    { 11, "Streak", "Роби записи 3 дні підряд", "🔥", "streak_3", "3 дні поспіль", 20 },
+                    { 12, "Streak", "Роби записи 7 днів підряд", "⚡", "streak_7", "Тижневий стрік", 50 },
+                    { 13, "Streak", "Роби записи 30 днів підряд", "💎", "streak_30", "Місячний стрік", 200 }
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_child_stats_ChildId",
-                table: "child_stats",
-                column: "ChildId",
+                name: "IX_achievements_Key",
+                table: "achievements",
+                column: "Key",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_duel_point_events_ChildId",
-                table: "duel_point_events",
+                name: "IX_child_achievements_AchievementId",
+                table: "child_achievements",
+                column: "AchievementId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_child_achievements_ChildId_AchievementId",
+                table: "child_achievements",
+                columns: new[] { "ChildId", "AchievementId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Duel_ChallengerId",
+                table: "Duel",
+                column: "ChallengerId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Duel_OpponentId",
+                table: "Duel",
+                column: "OpponentId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Duel_WinnerId",
+                table: "Duel",
+                column: "WinnerId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DuelPointEvent_ChildId",
+                table: "DuelPointEvent",
                 column: "ChildId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_duel_point_events_DuelId",
-                table: "duel_point_events",
+                name: "IX_DuelPointEvent_DuelId",
+                table: "DuelPointEvent",
                 column: "DuelId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_duel_point_events_GlucoseReadingId",
-                table: "duel_point_events",
+                name: "IX_DuelPointEvent_GlucoseReadingId",
+                table: "DuelPointEvent",
                 column: "GlucoseReadingId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_duels_ChallengerChildId",
-                table: "duels",
-                column: "ChallengerChildId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_duels_OpponentChildId",
-                table: "duels",
-                column: "OpponentChildId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_duels_WinnerChildId",
-                table: "duels",
-                column: "WinnerChildId");
+                name: "IX_food_entries_HealthRecordId",
+                table: "food_entries",
+                column: "HealthRecordId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_glucose_readings_ChildId",
@@ -425,85 +414,61 @@ namespace GlucoKids.Infrastructure.Migrations
                 column: "ChildId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_lesson_progress_ChildId_LessonId",
+                name: "IX_lesson_progress_ChildId_LessonKey",
                 table: "lesson_progress",
-                columns: new[] { "ChildId", "LessonId" },
+                columns: new[] { "ChildId", "LessonKey" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_lesson_progress_LessonId",
-                table: "lesson_progress",
-                column: "LessonId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_matchmaking_queue_ChildId",
-                table: "matchmaking_queue",
+                name: "IX_medical_profiles_ChildId",
+                table: "medical_profiles",
                 column: "ChildId",
                 unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_parent_child_links_ChildId",
-                table: "parent_child_links",
-                column: "ChildId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_parent_child_links_InviteCode",
-                table: "parent_child_links",
-                column: "InviteCode",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_parent_child_links_ParentId",
-                table: "parent_child_links",
-                column: "ParentId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_psycho_lessons_ModuleId",
-                table: "psycho_lessons",
-                column: "ModuleId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_users_FirebaseUid",
                 table: "users",
                 column: "FirebaseUid",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_xp_logs_ChildId",
+                table: "xp_logs",
+                column: "ChildId");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "child_stats");
+                name: "child_achievements");
 
             migrationBuilder.DropTable(
-                name: "duel_point_events");
+                name: "DuelPointEvent");
 
             migrationBuilder.DropTable(
-                name: "health_records");
+                name: "food_entries");
 
             migrationBuilder.DropTable(
                 name: "lesson_progress");
 
             migrationBuilder.DropTable(
-                name: "matchmaking_queue");
+                name: "medical_profiles");
 
             migrationBuilder.DropTable(
-                name: "parent_child_links");
+                name: "xp_logs");
 
             migrationBuilder.DropTable(
-                name: "parents");
+                name: "achievements");
 
             migrationBuilder.DropTable(
                 name: "glucose_readings");
 
             migrationBuilder.DropTable(
-                name: "psycho_lessons");
+                name: "health_records");
 
             migrationBuilder.DropTable(
-                name: "duels");
-
-            migrationBuilder.DropTable(
-                name: "psycho_modules");
+                name: "Duel");
 
             migrationBuilder.DropTable(
                 name: "children");

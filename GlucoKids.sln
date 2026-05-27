@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GlucoKids", "GlucoKids\GlucoKids.csproj", "{820CB351-059A-42E1-B739-A7CD8A6BCC35}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GlucoKids.API", "GlucoKids.API\GlucoKids.API.csproj", "{820CB351-059A-42E1-B739-A7CD8A6BCC35}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GlucoKids.Domain", "GlucoKids.Domain\GlucoKids.Domain.csproj", "{0B664E35-7367-4C04-A2A4-BEF7C98E9F95}"
 EndProject

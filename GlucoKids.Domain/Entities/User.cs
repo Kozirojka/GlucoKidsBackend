@@ -12,7 +12,6 @@ public class User
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public Child? Child { get; set; }
-    public Parent? Parent { get; set; }
 }
 
-public enum UserRole { Child, Parent }
+public enum UserRole { Child }

@@ -3,18 +3,18 @@ services:
   api:
     build:
       context: "C:\\GlucoKidsBackend\\GlucoKids"
-      dockerfile: "GlucoKids/Dockerfile"
+      dockerfile: "GlucoKids.API/Dockerfile"
       target: "base"
     command: []
     entrypoint:
     - "dotnet"
-    - "/app/bin/Debug/net8.0/GlucoKids.dll"
+    - "/app/bin/Debug/net8.0/GlucoKids.API.dll"
     environment:
       DOTNET_USE_POLLING_FILE_WATCHER: "true"
-    image: "glucokids:dev"
+    image: "glucokids.api:dev"
     ports: []
     volumes:
-    - "C:\\GlucoKidsBackend\\GlucoKids\\GlucoKids:/app:rw"
+    - "C:\\GlucoKidsBackend\\GlucoKids\\GlucoKids.API:/app:rw"
     - "C:\\GlucoKidsBackend\\GlucoKids:/src:rw"
     - "C:\\Users\\kostya\\.nuget\\packages:/root/.nuget/packages"
     working_dir: "/app"

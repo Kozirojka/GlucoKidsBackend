@@ -16,6 +16,25 @@ public class FatSecretFoodService(
 
     public async Task<FoodSearchResponse> SearchAsync(string query, int page = 0, string? foodType = null, CancellationToken ct = default)
     {
+        var json = await FetchRawJsonAsync(query, page, foodType, ct);
+        var result = ParseResponse(json);
+
+        logger.LogInformation("FatSecret parsed {Count}/{Total} items:", result.Foods.Count, result.Total);
+        for (var i = 0; i < result.Foods.Count; i++)
+        {
+            var f = result.Foods[i];
+            logger.LogInformation("  [{I}] {Name} | brand={Brand} | type={FoodType} | cal={Calories} | carbs={Carbs}g | XE={BreadUnits}",
+                i, f.Name, f.Brand ?? "-", f.FoodType ?? "-", f.Calories, f.Carbs, f.BreadUnits);
+        }
+
+        return result;
+    }
+
+    public async Task<string> GetRawJsonAsync(string query, int page = 0, CancellationToken ct = default)
+        => await FetchRawJsonAsync(query, page, null, ct);
+
+    private async Task<string> FetchRawJsonAsync(string query, int page, string? foodType, CancellationToken ct)
+    {
         var token = await tokenService.GetAccessTokenAsync(ct);
         var client = httpClientFactory.CreateClient("FatSecretApi");
 
@@ -46,9 +65,7 @@ public class FatSecretFoodService(
             throw new HttpRequestException($"FatSecret search failed ({(int)response.StatusCode}): {error}");
         }
 
-        var json = await response.Content.ReadAsStringAsync(ct);
-        logger.LogDebug("FatSecret raw response: {Json}", json);
-        return ParseResponse(json);
+        return await response.Content.ReadAsStringAsync(ct);
     }
 
     private static FoodSearchResponse ParseResponse(string json)
@@ -56,34 +73,41 @@ public class FatSecretFoodService(
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
-        if (!root.TryGetProperty("foods_search", out var foodsSearch))
-            return new FoodSearchResponse([], 0);
-
-        int total = 0;
-        if (foodsSearch.TryGetProperty("total_results", out var totalEl))
-            int.TryParse(totalEl.GetString(), out total);
-
         var items = new List<FoodItem>();
+        var total = 0;
 
-        if (!foodsSearch.TryGetProperty("results", out var results) ||
-            !results.TryGetProperty("food", out var foodArray))
-            return new FoodSearchResponse(items, total);
+        CollectFoodItems(root, items, ref total);
 
-        if (foodArray.ValueKind == JsonValueKind.Object)
+        return new FoodSearchResponse(items, total);
+    }
+
+    private static void CollectFoodItems(JsonElement el, List<FoodItem> items, ref int total)
+    {
+        if (el.ValueKind == JsonValueKind.Object)
         {
-            var item = ParseFoodItem(foodArray);
-            if (item is not null) items.Add(item);
-        }
-        else if (foodArray.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var el in foodArray.EnumerateArray())
+            // Extract total_results wherever it appears
+            if (total == 0 && el.TryGetProperty("total_results", out var totalEl))
+                int.TryParse(totalEl.ValueKind == JsonValueKind.String
+                    ? totalEl.GetString()
+                    : totalEl.GetRawText(), out total);
+
+            // If this object looks like a food item, parse it directly
+            if (el.TryGetProperty("food_name", out _))
             {
                 var item = ParseFoodItem(el);
                 if (item is not null) items.Add(item);
+                return;
             }
-        }
 
-        return new FoodSearchResponse(items, total);
+            // Otherwise recurse into all properties
+            foreach (var prop in el.EnumerateObject())
+                CollectFoodItems(prop.Value, items, ref total);
+        }
+        else if (el.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var child in el.EnumerateArray())
+                CollectFoodItems(child, items, ref total);
+        }
     }
 
     private static FoodItem? ParseFoodItem(JsonElement el)
@@ -95,13 +119,15 @@ public class FatSecretFoodService(
         var foodType = el.TryGetProperty("food_type",  out var ft) ? ft.GetString() : null;
 
         float calories = 0, carbs = 0;
+        string? servingDescription = null;
 
         if (el.TryGetProperty("servings", out var servings) &&
             servings.TryGetProperty("serving", out var servingEl))
         {
-            var serving = servingEl.ValueKind == JsonValueKind.Array ? servingEl[0] : servingEl;
-            calories = ParseFloat(serving, "calories");
-            carbs    = ParseFloat(serving, "carbohydrate");
+            var serving = PickDefaultServing(servingEl);
+            calories           = ParseFloat(serving, "calories");
+            carbs              = ParseFloat(serving, "carbohydrate");
+            servingDescription = serving.TryGetProperty("serving_description", out var sd) ? sd.GetString() : null;
         }
         else if (el.TryGetProperty("food_description", out var descEl))
         {
@@ -111,12 +137,27 @@ public class FatSecretFoodService(
         }
 
         return new FoodItem(
-            Name:       name,
-            Calories:   (int)Math.Round(calories),
-            Carbs:      MathF.Round(carbs, 1),
-            BreadUnits: MathF.Round(carbs / CarbsPerBreadUnit, 2),
-            Brand:      brand,
-            FoodType:   foodType);
+            Name:               name,
+            Calories:           (int)Math.Round(calories),
+            Carbs:              MathF.Round(carbs, 1),
+            BreadUnits:         MathF.Round(carbs / CarbsPerBreadUnit, 2),
+            Brand:              brand,
+            FoodType:           foodType,
+            ServingDescription: servingDescription);
+    }
+
+    private static JsonElement PickDefaultServing(JsonElement servingEl)
+    {
+        if (servingEl.ValueKind == JsonValueKind.Object) return servingEl;
+
+        JsonElement? first = null;
+        foreach (var s in servingEl.EnumerateArray())
+        {
+            first ??= s;
+            if (s.TryGetProperty("is_default", out var def) && def.GetString() == "1")
+                return s;
+        }
+        return first ?? servingEl[0];
     }
 
     private static float ParseFloat(JsonElement el, string property)

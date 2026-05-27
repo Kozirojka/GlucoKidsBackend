@@ -4,7 +4,6 @@ using GlucoKids.Domain.Entities;
 using GlucoKids.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using UserRole = GlucoKids.Domain.Entities.UserRole;
 
 namespace GlucoKids.Controllers;
 
@@ -30,10 +29,6 @@ public class AuthController(
         if (string.IsNullOrWhiteSpace(idToken))
             return BadRequest("idToken cannot be empty.");
 
-        var roleStr = doc.RootElement.TryGetProperty("role", out var roleEl) ? roleEl.GetString() : null;
-        var role = roleStr?.Equals("Parent", StringComparison.OrdinalIgnoreCase) == true
-            ? UserRole.Parent : UserRole.Child;
-
         var adminUid = configuration["Auth:AdminUid"];
 
         try
@@ -51,14 +46,10 @@ public class AuthController(
 
                 if (isNew)
                 {
-                    user = new User { FirebaseUid = uid, Role = role, CreatedAt = DateTime.UtcNow };
+                    user = new User { FirebaseUid = uid, Role = UserRole.Child, CreatedAt = DateTime.UtcNow };
                     db.Users.Add(user);
                     await db.SaveChangesAsync(ct);
-
-                    if (role == UserRole.Child)
-                        db.Children.Add(new Child { Id = user.Id });
-                    else
-                        db.Parents.Add(new Parent { Id = user.Id });
+                    db.Children.Add(new Child { Id = user.Id });
                 }
 
                 user!.Email      = email;
@@ -74,15 +65,15 @@ public class AuthController(
                 // Встановлюємо Firebase custom claim — підписується Google, клієнт не може підробити
                 await firebaseAdminService.SetAdminClaimAsync(uid, user.IsAdmin, ct);
 
-                logger.LogInformation("Auth OK — uid={Uid} newUser={IsNew} role={Role} isAdmin={IsAdmin}",
-                    uid, isNew, user.Role, user.IsAdmin);
+                logger.LogInformation("Auth OK — uid={Uid} newUser={IsNew} isAdmin={IsAdmin}",
+                    uid, isNew, user.IsAdmin);
 
                 return Ok(new AuthResponse(uid, email ?? string.Empty, name, picture,
                     user.Role.ToString(), user.IsAdmin));
             }
 
             return Ok(new AuthResponse(string.Empty, email ?? string.Empty, name, picture,
-                role.ToString(), false));
+                UserRole.Child.ToString(), false));
         }
         catch (Microsoft.IdentityModel.Tokens.SecurityTokenException ex)
         {

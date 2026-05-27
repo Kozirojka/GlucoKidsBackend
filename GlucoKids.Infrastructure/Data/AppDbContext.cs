@@ -7,17 +7,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<User> Users => Set<User>();
     public DbSet<Child> Children => Set<Child>();
-    public DbSet<Parent> Parents => Set<Parent>();
-    public DbSet<ParentChildLink> ParentChildLinks => Set<ParentChildLink>();
-    public DbSet<PsychoModule> PsychoModules => Set<PsychoModule>();
-    public DbSet<PsychoLesson> PsychoLessons => Set<PsychoLesson>();
     public DbSet<LessonProgress> LessonProgress => Set<LessonProgress>();
-    public DbSet<MatchmakingQueue> MatchmakingQueue => Set<MatchmakingQueue>();
-    public DbSet<Duel> Duels => Set<Duel>();
-    public DbSet<GlucoseReading> GlucoseReadings => Set<GlucoseReading>();
-    public DbSet<DuelPointEvent> DuelPointEvents => Set<DuelPointEvent>();
-    public DbSet<ChildStats> ChildStats => Set<ChildStats>();
     public DbSet<HealthRecord> HealthRecords => Set<HealthRecord>();
+    public DbSet<FoodEntry> FoodEntries => Set<FoodEntry>();
+    public DbSet<MedicalProfile> MedicalProfiles => Set<MedicalProfile>();
+    public DbSet<XpLog> XpLogs => Set<XpLog>();
+    public DbSet<GlucoseReading> GlucoseReadings => Set<GlucoseReading>();
+    public DbSet<Achievement> Achievements => Set<Achievement>();
+    public DbSet<ChildAchievement> ChildAchievements => Set<ChildAchievement>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -44,105 +41,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
              .OnDelete(DeleteBehavior.Cascade);
         });
 
-        model.Entity<Parent>(e =>
-        {
-            e.ToTable("parents");
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Id).ValueGeneratedNever();
-            e.Property(x => x.Phone).HasMaxLength(30);
-            e.HasOne(x => x.User)
-             .WithOne(u => u.Parent)
-             .HasForeignKey<Parent>(x => x.Id)
-             .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        model.Entity<ParentChildLink>(e =>
-        {
-            e.ToTable("parent_child_links");
-            e.HasKey(x => x.Id);
-            e.Property(x => x.InviteCode).HasMaxLength(8).IsRequired();
-            e.HasIndex(x => x.InviteCode).IsUnique();
-            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(10).IsRequired();
-            e.Property(x => x.CreatedAt).HasDefaultValueSql("NOW()");
-            e.HasOne(x => x.ParentUser).WithMany().HasForeignKey(x => x.ParentId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(x => x.ChildUser).WithMany().HasForeignKey(x => x.ChildId).OnDelete(DeleteBehavior.Restrict);
-        });
-
-        model.Entity<PsychoModule>(e =>
-        {
-            e.ToTable("psycho_modules");
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Title).HasMaxLength(200).IsRequired();
-        });
-
-        model.Entity<PsychoLesson>(e =>
-        {
-            e.ToTable("psycho_lessons");
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Title).HasMaxLength(200).IsRequired();
-            e.HasOne(x => x.Module)
-             .WithMany(m => m.Lessons)
-             .HasForeignKey(x => x.ModuleId)
-             .OnDelete(DeleteBehavior.Cascade);
-        });
-
         model.Entity<LessonProgress>(e =>
         {
             e.ToTable("lesson_progress");
             e.HasKey(x => x.Id);
-            e.HasIndex(x => new { x.ChildId, x.LessonId }).IsUnique();
+            e.HasIndex(x => new { x.ChildId, x.LessonKey }).IsUnique();
+            e.Property(x => x.LessonKey).HasMaxLength(128).IsRequired();
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
             e.HasOne(x => x.Child).WithMany(c => c.Progress).HasForeignKey(x => x.ChildId).OnDelete(DeleteBehavior.Cascade);
-            e.HasOne(x => x.Lesson).WithMany(l => l.Progress).HasForeignKey(x => x.LessonId).OnDelete(DeleteBehavior.Cascade);
-        });
-
-        model.Entity<MatchmakingQueue>(e =>
-        {
-            e.ToTable("matchmaking_queue");
-            e.HasKey(x => x.Id);
-            e.HasIndex(x => x.ChildId).IsUnique();
-            e.Property(x => x.JoinedAt).HasDefaultValueSql("NOW()");
-            e.HasOne(x => x.Child).WithMany().HasForeignKey(x => x.ChildId).OnDelete(DeleteBehavior.Cascade);
-        });
-
-        model.Entity<Duel>(e =>
-        {
-            e.ToTable("duels");
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
-            e.Property(x => x.CreatedAt).HasDefaultValueSql("NOW()");
-            e.HasOne(x => x.Challenger).WithMany().HasForeignKey(x => x.ChallengerChildId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(x => x.Opponent).WithMany().HasForeignKey(x => x.OpponentChildId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(x => x.Winner).WithMany().HasForeignKey(x => x.WinnerChildId).OnDelete(DeleteBehavior.Restrict).IsRequired(false);
-        });
-
-        model.Entity<GlucoseReading>(e =>
-        {
-            e.ToTable("glucose_readings");
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Value).HasColumnType("numeric(5,2)");
-            e.Property(x => x.CreatedAt).HasDefaultValueSql("NOW()");
-            e.HasOne(x => x.Child).WithMany().HasForeignKey(x => x.ChildId).OnDelete(DeleteBehavior.Cascade);
-            e.HasOne(x => x.Duel).WithMany(d => d.GlucoseReadings).HasForeignKey(x => x.DuelId).OnDelete(DeleteBehavior.SetNull).IsRequired(false);
-        });
-
-        model.Entity<DuelPointEvent>(e =>
-        {
-            e.ToTable("duel_point_events");
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Reason).HasConversion<string>().HasMaxLength(50).IsRequired();
-            e.Property(x => x.CreatedAt).HasDefaultValueSql("NOW()");
-            e.HasOne(x => x.Duel).WithMany(d => d.PointEvents).HasForeignKey(x => x.DuelId).OnDelete(DeleteBehavior.Cascade);
-            e.HasOne(x => x.Child).WithMany().HasForeignKey(x => x.ChildId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(x => x.GlucoseReading).WithMany().HasForeignKey(x => x.GlucoseReadingId).OnDelete(DeleteBehavior.SetNull).IsRequired(false);
-        });
-
-        model.Entity<ChildStats>(e =>
-        {
-            e.ToTable("child_stats");
-            e.HasKey(x => x.Id);
-            e.HasIndex(x => x.ChildId).IsUnique();
-            e.HasOne(x => x.Child).WithMany().HasForeignKey(x => x.ChildId).OnDelete(DeleteBehavior.Cascade);
         });
 
         model.Entity<HealthRecord>(e =>
@@ -158,31 +64,98 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasOne(x => x.Child).WithMany().HasForeignKey(x => x.ChildId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        model.Entity<FoodEntry>(e =>
+        {
+            e.ToTable("food_entries");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Brand).HasMaxLength(100);
+            e.Property(x => x.CarbohydratesG).HasColumnType("numeric(7,2)");
+            e.Property(x => x.BreadUnits).HasColumnType("numeric(7,2)");
+            e.Property(x => x.WeightG).HasColumnType("numeric(7,2)");
+            e.Property(x => x.CreatedAt).HasDefaultValueSql("NOW()");
+            e.HasOne(x => x.HealthRecord).WithMany(r => r.Foods).HasForeignKey(x => x.HealthRecordId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        model.Entity<MedicalProfile>(e =>
+        {
+            e.ToTable("medical_profiles");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ChildId).IsUnique();
+            e.Property(x => x.DiabetesType).HasConversion<string>().HasMaxLength(10).IsRequired();
+            e.Property(x => x.TargetGlucoseMin).HasColumnType("numeric(5,2)");
+            e.Property(x => x.TargetGlucoseMax).HasColumnType("numeric(5,2)");
+            e.Property(x => x.InsulinBrand).HasMaxLength(100);
+            e.Property(x => x.UpdatedAt).HasDefaultValueSql("NOW()");
+            e.HasOne(x => x.Child).WithOne(c => c.MedicalProfile).HasForeignKey<MedicalProfile>(x => x.ChildId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        model.Entity<XpLog>(e =>
+        {
+            e.ToTable("xp_logs");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Reason).HasConversion<string>().HasMaxLength(30).IsRequired();
+            e.Property(x => x.ReferenceId).HasMaxLength(128);
+            e.Property(x => x.EarnedAt).HasDefaultValueSql("NOW()");
+            e.HasOne(x => x.Child).WithMany(c => c.XpLogs).HasForeignKey(x => x.ChildId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        model.Entity<GlucoseReading>(e =>
+        {
+            e.ToTable("glucose_readings");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Value).HasColumnType("numeric(5,2)");
+            e.Property(x => x.CreatedAt).HasDefaultValueSql("NOW()");
+            e.HasOne(x => x.Child).WithMany().HasForeignKey(x => x.ChildId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        model.Entity<Achievement>(e =>
+        {
+            e.ToTable("achievements");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Key).HasMaxLength(50).IsRequired();
+            e.HasIndex(x => x.Key).IsUnique();
+            e.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(500).IsRequired();
+            e.Property(x => x.IconEmoji).HasMaxLength(10).IsRequired();
+            e.Property(x => x.Category).HasConversion<string>().HasMaxLength(20).IsRequired();
+        });
+
+        model.Entity<ChildAchievement>(e =>
+        {
+            e.ToTable("child_achievements");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ChildId, x.AchievementId }).IsUnique();
+            e.Property(x => x.EarnedAt).HasDefaultValueSql("NOW()");
+            e.HasOne(x => x.Child)
+             .WithMany()
+             .HasForeignKey(x => x.ChildId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Achievement)
+             .WithMany(a => a.ChildAchievements)
+             .HasForeignKey(x => x.AchievementId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
         SeedData(model);
     }
 
     private static void SeedData(ModelBuilder model)
     {
-        model.Entity<PsychoModule>().HasData(
-            new PsychoModule { Id = 1, Title = "Що таке цукровий діабет?", Description = "Основи про діабет для дітей", OrderIndex = 1 },
-            new PsychoModule { Id = 2, Title = "Як вимірювати рівень глюкози?", Description = "Навчання користуватись глюкометром", OrderIndex = 2 },
-            new PsychoModule { Id = 3, Title = "Правильне харчування", Description = "Хлібні одиниці та збалансована дієта", OrderIndex = 3 },
-            new PsychoModule { Id = 4, Title = "Фізична активність", Description = "Спорт і діабет — як поєднати?", OrderIndex = 4 }
-        );
-
-        model.Entity<PsychoLesson>().HasData(
-            new PsychoLesson { Id = 1,  ModuleId = 1, Title = "Що таке глюкоза?", OrderIndex = 1 },
-            new PsychoLesson { Id = 2,  ModuleId = 1, Title = "Типи діабету", OrderIndex = 2 },
-            new PsychoLesson { Id = 3,  ModuleId = 1, Title = "Як працює інсулін?", OrderIndex = 3 },
-            new PsychoLesson { Id = 4,  ModuleId = 2, Title = "Що таке глюкометр?", OrderIndex = 1 },
-            new PsychoLesson { Id = 5,  ModuleId = 2, Title = "Коли вимірювати глюкозу?", OrderIndex = 2 },
-            new PsychoLesson { Id = 6,  ModuleId = 2, Title = "Норми рівня глюкози", OrderIndex = 3 },
-            new PsychoLesson { Id = 7,  ModuleId = 3, Title = "Що таке хлібна одиниця?", OrderIndex = 1 },
-            new PsychoLesson { Id = 8,  ModuleId = 3, Title = "Продукти з низьким глікемічним індексом", OrderIndex = 2 },
-            new PsychoLesson { Id = 9,  ModuleId = 3, Title = "Як читати етикетки продуктів?", OrderIndex = 3 },
-            new PsychoLesson { Id = 10, ModuleId = 4, Title = "Чому спорт корисний при діабеті?", OrderIndex = 1 },
-            new PsychoLesson { Id = 11, ModuleId = 4, Title = "Що взяти з собою на тренування?", OrderIndex = 2 },
-            new PsychoLesson { Id = 12, ModuleId = 4, Title = "Гіпоглікемія під час активності", OrderIndex = 3 }
+        model.Entity<Achievement>().HasData(
+            new Achievement { Id = 1,  Key = "first_lesson", Title = "Перший урок",   Description = "Заверши свій перший урок",             IconEmoji = "📖", XpReward = 10,  Category = AchievementCategory.Lessons },
+            new Achievement { Id = 2,  Key = "lessons_5",    Title = "5 уроків",       Description = "Заверши 5 уроків",                     IconEmoji = "🎓", XpReward = 50,  Category = AchievementCategory.Lessons },
+            new Achievement { Id = 3,  Key = "all_lessons",  Title = "Всі уроки",      Description = "Заверши всі уроки програми",           IconEmoji = "🏆", XpReward = 200, Category = AchievementCategory.Lessons },
+            new Achievement { Id = 4,  Key = "first_record", Title = "Перший запис",   Description = "Збережи свій перший запис глюкози",    IconEmoji = "🩸", XpReward = 10,  Category = AchievementCategory.Glucose },
+            new Achievement { Id = 5,  Key = "records_7",    Title = "7 записів",      Description = "Збережи 7 записів глюкози",            IconEmoji = "📊", XpReward = 30,  Category = AchievementCategory.Glucose },
+            new Achievement { Id = 6,  Key = "records_30",   Title = "30 записів",     Description = "Збережи 30 записів глюкози",           IconEmoji = "📈", XpReward = 100, Category = AchievementCategory.Glucose },
+            new Achievement { Id = 7,  Key = "in_range_5",   Title = "У нормі",        Description = "5 показників у цільовому діапазоні",   IconEmoji = "✅", XpReward = 50,  Category = AchievementCategory.Glucose },
+            new Achievement { Id = 8,  Key = "first_win",    Title = "Перша перемога", Description = "Виграй свій перший батл",              IconEmoji = "⚔️", XpReward = 20,  Category = AchievementCategory.Battle  },
+            new Achievement { Id = 9,  Key = "wins_5",       Title = "5 перемог",      Description = "Виграй 5 батлів",                      IconEmoji = "🥇", XpReward = 75,  Category = AchievementCategory.Battle  },
+            new Achievement { Id = 10, Key = "wins_10",      Title = "10 перемог",     Description = "Виграй 10 батлів",                     IconEmoji = "👑", XpReward = 150, Category = AchievementCategory.Battle  },
+            new Achievement { Id = 11, Key = "streak_3",     Title = "3 дні поспіль",  Description = "Роби записи 3 дні підряд",             IconEmoji = "🔥", XpReward = 20,  Category = AchievementCategory.Streak  },
+            new Achievement { Id = 12, Key = "streak_7",     Title = "Тижневий стрік", Description = "Роби записи 7 днів підряд",            IconEmoji = "⚡", XpReward = 50,  Category = AchievementCategory.Streak  },
+            new Achievement { Id = 13, Key = "streak_30",    Title = "Місячний стрік", Description = "Роби записи 30 днів підряд",           IconEmoji = "💎", XpReward = 200, Category = AchievementCategory.Streak  }
         );
     }
 }

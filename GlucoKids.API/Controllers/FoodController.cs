@@ -31,4 +31,21 @@ public class FoodController(IFoodService foodService, ILogger<FoodController> lo
             return Problem(detail: ex.Message, statusCode: 502, title: "FatSecret API error");
         }
     }
+
+    [HttpGet("raw")]
+    public async Task<IActionResult> Raw([FromQuery] string q, CancellationToken ct, [FromQuery] int page = 0)
+    {
+        if (string.IsNullOrWhiteSpace(q))
+            return BadRequest("Query parameter 'q' is required.");
+
+        try
+        {
+            var json = await foodService.GetRawJsonAsync(q, page, ct);
+            return Content(json, "application/json");
+        }
+        catch (HttpRequestException ex)
+        {
+            return Problem(detail: ex.Message, statusCode: 502, title: "FatSecret API error");
+        }
+    }
 }
